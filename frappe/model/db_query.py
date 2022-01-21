@@ -664,10 +664,18 @@ class DatabaseQuery(object):
 
 					elif df.get('fieldname') == 'name' and self.reference_doctype:
 						if permission.get('applicable_for') == self.reference_doctype:
-							docs.append(permission.get('doc'))
+							if not permission.get('field_to_restrict'):
+								docs.append(permission.get('doc'))
+
+							if permission.get('field_to_restrict') and permission.get('field_to_restrict') == df.get('fieldname'):
+								docs.append(permission.get('doc'))
 
 					elif permission.get('applicable_for') == self.doctype:
-						docs.append(permission.get('doc'))
+						if not permission.get('field_to_restrict'):
+							docs.append(permission.get('doc'))
+
+						if permission.get('field_to_restrict') and permission.get('field_to_restrict') == df.get('fieldname'):
+							docs.append(permission.get('doc'))
 
 				if docs:
 					condition += "`tab{doctype}`.`{fieldname}` in ({values})".format(

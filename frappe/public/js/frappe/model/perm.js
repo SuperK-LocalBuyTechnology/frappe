@@ -150,7 +150,27 @@ $.extend(frappe.perm, {
 				const user_permissions_for_doctype = user_permissions[df.options] || [];
 				const allowed_records = frappe.perm.get_allowed_docs_for_doctype(user_permissions_for_doctype, doctype);
 				if (allowed_records.length) {
-					rules[df.label] = allowed_records;
+					for (
+						let i = 0;
+						i < user_permissions_for_doctype.length;
+						i++
+					) {
+						if (
+							user_permissions_for_doctype[i]["field_to_restrict"]
+						) {
+							if (
+								user_permissions_for_doctype[i][
+									"field_to_restrict"
+								] === df.fieldname
+							) {
+								rules[df.label] =
+									user_permissions_for_doctype[i]["doc"];
+							}
+						} else {
+							rules[df.label] =
+								user_permissions_for_doctype[i]["doc"];
+						}
+					}
 				}
 			});
 			if (!$.isEmptyObject(rules)) {
