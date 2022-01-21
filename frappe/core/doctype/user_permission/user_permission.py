@@ -33,6 +33,7 @@ class UserPermission(Document):
 			'user': self.user,
 			'applicable_for': cstr(self.applicable_for),
 			'apply_to_all_doctypes': self.apply_to_all_doctypes,
+            'field_to_restrict': self.field_to_restrict,
 			'name': ['!=', self.name]
 		}, limit=1)
 		if duplicate_exists:
@@ -77,7 +78,7 @@ def get_user_permissions(user=None):
 
 	out = {}
 
-	def add_doc_to_perm(perm, doc_name, is_default):
+	def add_doc_to_perm(perm, doc_name, is_default, field_to_restrict, is_child_table, table_fieldname):
 		# group rules for each type
 		# for example if allow is "Customer", then build all allowed customers
 		# in a list
@@ -87,21 +88,24 @@ def get_user_permissions(user=None):
 		out[perm.allow].append(frappe._dict({
 			'doc': doc_name,
 			'applicable_for': perm.get('applicable_for'),
-			'is_default': is_default
+			'is_default': is_default,
+            'field_to_restrict': field_to_restrict,
+            'is_child_table': is_child_table,
+            'table_fieldname': table_fieldname
 		}))
 
 	try:
 		for perm in frappe.get_all('User Permission',
-			fields=['allow', 'for_value', 'applicable_for', 'is_default', 'hide_descendants'],
+			fields=['allow', 'for_value', 'applicable_for', 'is_default', 'hide_descendants','field_to_restrict', 'is_child_table', 'table_fieldname'],
 			filters=dict(user=user)):
 
 			meta = frappe.get_meta(perm.allow)
-			add_doc_to_perm(perm, perm.for_value, perm.is_default)
+			add_doc_to_perm(perm, perm.for_value, perm.is_default, perm.field_to_restrict, perm.is_child_table, perm.table_fieldname)
 
 			if meta.is_nested_set() and not perm.hide_descendants:
 				decendants = frappe.db.get_descendants(perm.allow, perm.for_value)
 				for doc in decendants:
-					add_doc_to_perm(perm, doc, False)
+					add_doc_to_perm(perm, doc, False, perm.field_to_restrict, perm.is_child_table, perm.table_fieldname)
 
 		out = frappe._dict(out)
 		frappe.cache().hset("user_permissions", user, out)

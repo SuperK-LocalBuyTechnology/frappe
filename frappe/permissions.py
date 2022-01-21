@@ -266,22 +266,39 @@ def has_user_permission(doc, user=None):
 
 			# get the list of all allowed values for this link
 			allowed_docs = get_allowed_docs_for_doctype(user_permissions.get(field.options, []), doctype)
+			for perm in user_permissions[field.options]:
+				if perm['field_to_restrict']:
+					if allowed_docs and field.fieldname == perm['field_to_restrict'] and d.get(field.fieldname) not in allowed_docs:
+						# restricted for this link field, and no matching values found
+						# make the right message and exit
+						if d.get('parentfield'):
+							# "Not allowed for Company = Restricted Company in Row 3. Restricted field: reference_type"
+							msg = _('Not allowed for {0}: {1} in Row {2}. Restricted field: {3}').format(
+															_(field.options), d.get(field.fieldname), d.idx, field.fieldname)
+						else:
+							# "Not allowed for Company = Restricted Company. Restricted field: reference_type"
+							msg = _('Not allowed for {0}: {1}. Restricted field: {2}').format(
+															_(field.options), d.get(field.fieldname), field.fieldname)
 
-			if allowed_docs and d.get(field.fieldname) not in allowed_docs:
-				# restricted for this link field, and no matching values found
-				# make the right message and exit
-				if d.get('parentfield'):
-					# "Not allowed for Company = Restricted Company in Row 3. Restricted field: reference_type"
-					msg = _('Not allowed for {0}: {1} in Row {2}. Restricted field: {3}').format(
-						_(field.options), d.get(field.fieldname), d.idx, field.fieldname)
+						push_perm_check_log(msg)
+
+						return False
 				else:
-					# "Not allowed for Company = Restricted Company. Restricted field: reference_type"
-					msg = _('Not allowed for {0}: {1}. Restricted field: {2}').format(
-						_(field.options), d.get(field.fieldname), field.fieldname)
+					if allowed_docs and d.get(field.fieldname) not in allowed_docs:
+						# restricted for this link field, and no matching values found
+						# make the right message and exit
+						if d.get('parentfield'):
+							# "Not allowed for Company = Restricted Company in Row 3. Restricted field: reference_type"
+							msg = _('Not allowed for {0}: {1} in Row {2}. Restricted field: {3}').format(
+								_(field.options), d.get(field.fieldname), d.idx, field.fieldname)
+						else:
+							# "Not allowed for Company = Restricted Company. Restricted field: reference_type"
+							msg = _('Not allowed for {0}: {1}. Restricted field: {2}').format(
+								_(field.options), d.get(field.fieldname), field.fieldname)
 
-				push_perm_check_log(msg)
+						push_perm_check_log(msg)
 
-				return False
+						return False
 
 		return True
 
