@@ -700,31 +700,82 @@ class Document(BaseDocument):
 
 		Will also validate document transitions (Save > Submit > Cancel) calling
 		`self.check_docstatus_transition`."""
+
+		logger = frappe.logger("cw-logistics-process", allow_site=True,	file_count=1, max_size=100_000)
+		import datetime								   
+		T1 = datetime.datetime.now()
+
+		logger.info(
+			f"check_if_latest function called at line 712 at either save or insert for doctype {self.doctype} and docname {self.name}")
+
 		conflict = False
 		self._action = "save"
 		if not self.get('__islocal') and not self.meta.get('is_virtual'):
+			logger.info(
+				f"Confirmed that it is local and virtual for doctype {self.doctype} and docname {self.name}")
+
 			if self.meta.issingle:
+				logger.info(
+					f"It is a single doctype {self.doctype} and docname {self.name}")
+
 				modified = frappe.db.sql("""select value from tabSingles
 					where doctype=%s and field='modified' for update""", self.doctype)
+				
+				logger.info(
+					f"Modified timestamp in the DB for doctype {self.doctype} and docname {self.name} --> {modified}")
+				
 				modified = modified and modified[0][0]
+
+				logger.info(
+					f"Modified timestamp in the document for doctype {self.doctype} and docname {self.name} --> {modified}")
+
 				if modified and modified != cstr(self._original_modified):
+					logger.info(f"There is a conflict between db and document timestamp for doctype {self.doctype} and docname {self.name}")
 					conflict = True
 			else:
+				T2 = datetime.datetime.now()
+				logger.info(
+					f"It is NOT a single doctype {self.doctype} and docname {self.name}")
+
+				logger.info(
+					f"Trying to figure out the timestamp in the DB for doctype {self.doctype} and docname {self.name}......")
+
 				tmp = frappe.db.sql("""select modified, docstatus from `tab{0}`
 					where name = %s for update""".format(self.doctype), self.name, as_dict=True)
+
+				T3 = datetime.datetime.now()
+				logger.info(
+					f"Time taken to get the db timestamp --> {T3-T2} for doctype {self.doctype} and docname {self.name}.")
+
 				if not tmp:
 					frappe.throw(_("Record does not exist"))
 				else:
 					tmp = tmp[0]
+					logger.info(f"DB timestamp --> {tmp}")
+
+				T4 = datetime.datetime.now()
 
 				modified = cstr(tmp.modified)
 
+				T5 = datetime.datetime.now()
+				logger.info(
+					f"Time taken to get the document timestamp --> {T5-T4} for doctype {self.doctype} and docname {self.name}. Document timestamp --> {modified}")
+
 				if modified and modified != cstr(self._original_modified):
+					logger.info(f"There is a conflict between db and document timestamp for doctype {self.doctype} and docname {self.name}")
 					conflict = True
+
+				T6 = datetime.datetime.now()
 
 				self.check_docstatus_transition(tmp.docstatus)
 
+				T7 = datetime.datetime.now()
+				logger.info(
+					f"Time taken to check_docstatus_transition for doctype {self.doctype} and docname {self.name}")
+
 			if conflict:
+				logger.info(
+					f"Error: Document has been modified after you have opened it. for doctype {self.doctype} and docname {self.name}")
 				frappe.msgprint(_("Error: Document has been modified after you have opened it") \
 				+ (" (%s, %s). " % (modified, self.modified)) \
 				+ _("Please refresh to get the latest document."),
